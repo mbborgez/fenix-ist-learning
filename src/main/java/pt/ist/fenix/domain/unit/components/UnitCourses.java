@@ -5,9 +5,11 @@ import org.fenixedu.academic.domain.CompetenceCourse;
 import org.fenixedu.academic.domain.organizationalStructure.CompetenceCourseGroupUnit;
 import org.fenixedu.academic.domain.organizationalStructure.DepartmentUnit;
 import org.fenixedu.academic.domain.organizationalStructure.ScientificAreaUnit;
+import org.fenixedu.academic.domain.organizationalStructure.Unit;
 import org.fenixedu.cms.domain.Page;
 import org.fenixedu.cms.domain.component.ComponentType;
 import org.fenixedu.cms.rendering.TemplateContext;
+import pt.ist.fenix.domain.unit.components.UnitSiteComponent;
 
 import java.util.Collection;
 import java.util.List;
@@ -19,8 +21,8 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.fenixedu.academic.domain.ExecutionYear.readCurrentExecutionYear;
 
-@ComponentType(name = "departmentCourses", description = "Courses of a Department")
-public class DepartmentCourses extends UnitSiteComponent {
+@ComponentType(name = "unitCourses", description = "Courses of a Unit")
+public class UnitCourses extends UnitSiteComponent {
 
     @Override
     public void handle(Page page, TemplateContext componentContext, TemplateContext globalContext) {
@@ -29,11 +31,17 @@ public class DepartmentCourses extends UnitSiteComponent {
             globalContext.put("scientificAreaUnits", getScientificAreaUnits(departmentUnit));
             globalContext.put("department", departmentUnit.getDepartment());
             globalContext.put("departmentUnit", departmentUnit);
+        } else {
+            globalContext.put("scientificAreaUnits", getScientificAreaUnits(unit(page)));
         }
     }
 
-    public List<Map> getScientificAreaUnits(DepartmentUnit unit) {
-        return unit.getScientificAreaUnits().stream().map(this::wrap).collect(toList());
+    public List<Map> getScientificAreaUnits(Unit unit) {
+        return unit.getSubUnits().stream().filter(Unit::isScientificAreaUnit)
+                .map(ScientificAreaUnit.class::cast)
+                .sorted(ScientificAreaUnit.COMPARATOR_BY_NAME_AND_ID)
+                .map(subunit -> wrap((ScientificAreaUnit) subunit))
+                .collect(toList());
     }
 
     public Map wrap(ScientificAreaUnit scientificAreaUnit) {
