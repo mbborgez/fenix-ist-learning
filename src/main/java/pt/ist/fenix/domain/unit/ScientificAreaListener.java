@@ -39,7 +39,7 @@ public class ScientificAreaListener {
     public static void createDefaultContents(Site site, Menu menu, User user) {
         UnitsListener.createDefaultContents(site, menu, user);
 
-        Page.create(site, menu, null, TITLE_EMPLOYEES, true, "employeesByArea", user, forType(EmployeesComponent.class));
+        Page.create(site, menu, null, TITLE_EMPLOYEES, true, "employeesByArea", user, forType(UnitEmployees.class));
         Page.create(site, menu, null, TITLE_TEACHERS, true, "departmentFaculty", user, forType(UnitTeachersComponent.class));
         Page.create(site, menu, null, TITLE_SUBUNITS, true, "subunits", user, forType(SubUnits.class));
         Page.create(site, menu, null, TITLE_ORGANIZATION, true, "unitOrganization", user, forType(Organization.class));

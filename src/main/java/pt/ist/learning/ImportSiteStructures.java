@@ -13,6 +13,7 @@ import com.google.gson.stream.JsonReader;
 import org.fenixedu.bennu.core.domain.Bennu;
 import org.fenixedu.bennu.core.domain.User;
 import org.fenixedu.bennu.core.groups.AnyoneGroup;
+import org.fenixedu.bennu.core.groups.DynamicGroup;
 import org.fenixedu.bennu.core.security.Authenticate;
 import org.fenixedu.bennu.io.domain.GroupBasedFile;
 import org.fenixedu.bennu.scheduler.custom.CustomTask;
@@ -31,6 +32,7 @@ import pt.ist.fenix.domain.homepage.HomepageSite;
 import pt.ist.fenix.domain.unit.DepartmentListener;
 import pt.ist.fenix.domain.unit.ResearchUnitListener;
 import pt.ist.fenix.domain.unit.UnitSite;
+import pt.ist.fenix.domain.unit.components.UnitHomepageComponent;
 import pt.ist.fenixframework.Atomic.TxMode;
 import pt.ist.fenixframework.FenixFramework;
 import pt.ist.fenix.domain.unit.ScientificAreaListener;
@@ -43,13 +45,17 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
 import java.util.zip.ZipInputStream;
 
+import static org.fenixedu.bennu.core.i18n.BundleUtil.getLocalizedString;
+import static org.fenixedu.cms.domain.component.Component.forType;
 import static pt.ist.fenixframework.FenixFramework.getDomainObject;
 
 public class ImportSiteStructures extends CustomTask {
-    private static final Path DATA_PATH = Paths.get("/home/borgez/Desktop/sites.json");
+    private static final Path DATA_PATH = Paths.get("/home/borgez/Desktop/unit_sites_export.json");
     private static final LocalizedString BANNER_NAME = new LocalizedString(I18N.getLocale(), "Banner");
+    private static final LocalizedString TITLE_HOMEPAGE = getLocalizedString("resources.FenixEduLearningResources", "researchUnit.homepage");
 
     public void runTask() throws Exception {
         installThemes();
@@ -62,24 +68,52 @@ public class ImportSiteStructures extends CustomTask {
         for (List<JsonElement> chunk : chunks) {
             for (JsonElement el : chunk) {
                 JsonObject json = el.getAsJsonObject();
-                if ("DepartmentSite".equals(json.get("type").getAsString())) {
+                String type = json.get("type").getAsString();
+                if ("ScientificAreaSite".equals(type)) {
                     Site site = FenixFramework.getDomainObject(json.get("site").getAsString());
                     if (!site.getMenusSet().isEmpty()) {
                         continue;
                     }
                     FenixFramework.atomic(() -> {
-                        generateSlugs(site);
-                        Menu menu = new Menu(site);
-                        menu.setName(ExecutionCourseListener.MENU_TITLE);
+                        generateSlugs(site, type);
+                        Menu menu = createMenu(site, ExecutionCourseListener.MENU_TITLE);
 
-                        createDefaultContents(site, menu, json.get("type").getAsString());
-
-                        process(site, json, menu, null);
+                        createDefaultContents(site, menu, type);
+                        if(site instanceof UnitSite) {
+                            Menu topMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Top"));
+                            Menu sideMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Side"));
+                            if (json.has("sections")) {
+                                for (JsonElement ell : json.get("sections").getAsJsonArray()) {
+                                    JsonObject section = ell.getAsJsonObject();
+                                    LocalizedString sectionName = LocalizedString.fromJson(section.get("name"));
+                                    if(isSpecialSection(sectionName, "top")) {
+                                        process(site, section, topMenu, null);
+                                    } else if (isSpecialSection(sectionName, "side")) {
+                                        process(site, section, sideMenu, null);
+                                    } else {
+                                        process(site, section, menu, null);
+                                    }
+                                }
+                            }
+                        } else {
+                            process(site, json, menu, null);
+                        }
                     });
                     taskLog("Processing %s - %s - exists ? %s\n", count++, json.get("type").getAsString(), site != null);
                 }
             }
         }
+    }
+
+    private boolean isSpecialSection(LocalizedString sectionName, String specialSectionName) {
+        return sectionName.getLocales().stream().map(locale -> sectionName.getContent(locale))
+                .filter(content->specialSectionName.toLowerCase().equals(content.toLowerCase())).findAny().isPresent();
+    }
+
+    private Menu createMenu(Site site, LocalizedString name) {
+        Menu menu = new Menu(site);
+        menu.setName(ExecutionCourseListener.MENU_TITLE);
+        return menu;
     }
 
     private void createDefaultContents(Site site, Menu menu, String type) {
@@ -91,7 +125,6 @@ public class ImportSiteStructures extends CustomTask {
         } else if (site instanceof DegreeSite) {
             DegreeSiteListener.createDefaultContents(site, menu, user);
         } else if(site instanceof UnitSite) {
-            taskLog("create default contents for unit site (%s) of type %s.\n", site.getSlug(), type);
             if("DepartmentSite".equals(type)) {
                 DepartmentListener.createDefaultContents(site, menu, user);
             } else if("ScientificAreaSite".equals(type)) {
@@ -106,8 +139,7 @@ public class ImportSiteStructures extends CustomTask {
         }
     }
 
-    private void generateSlugs(Site site) {
-        taskLog("generating slug for site '%s'\n", site.getExternalId());
+    private void generateSlugs(Site site, String type) {
         site.setBennu(Bennu.getInstance());
 
         if (site.getCreatedBy() == null) {
@@ -115,7 +147,7 @@ public class ImportSiteStructures extends CustomTask {
         }
 
         if (site.getFolder() == null) {
-            site.setFolder(folderForSite(site));
+            site.setFolder(folderForSite(site, type));
         }
 
         for (Category cat : site.getCategoriesSet()) {
@@ -166,13 +198,23 @@ public class ImportSiteStructures extends CustomTask {
         }
     }
 
-    private CMSFolder folderForSite(Site site) {
+    private CMSFolder folderForSite(Site site, String type) {
         if (site instanceof ExecutionCourseSite) {
             return folder("/disciplinas");
         } else if (site instanceof HomepageSite) {
             return folder("/homepage");
         } else if (site instanceof UnitSite) {
-            return folder("/unit");
+            if("DepartmentSite".equals(type)) {
+                return folder("/departmentos");
+            } else if("ScientificAreaSite".equals(type)) {
+                return folder("/unit");
+            } else if("ScientificCouncilSite".equals(type)) {
+                return folder("/unit");
+            } else if("ResearchUnitSite".equals(type)) {
+                return folder("/unit");
+            } else {
+                return folder("/unit");
+            }
         } else {
             return null;
         }
@@ -206,8 +248,21 @@ public class ImportSiteStructures extends CustomTask {
             importBanners(site, json.getAsJsonObject("bannerInfo"));
         }
         if(json.has("managers")) {
-            //taskLog("managers '%s' - '%s'", site.getExternalId(), json.get("managers").toString());
+            taskLog("managers '%s'", json.get("managers").toString());
             //TODO
+        }
+        if(json.has("layout")) {
+            String layout = json.get("layout").getAsString();
+            String homepageTemplate = "unitHomepageWithBannerIntro";
+            if("BANNER_INTRO".equals(layout)) {
+                homepageTemplate = "unitHomepageWithBannerIntro";
+            } else if("BANNER_INTRO_COLLAPSED".equals(layout)) {
+                homepageTemplate = "unitHomepageWithIntroFloat";
+            } else if ("INTRO_BANNER".equals(layout)) {
+                homepageTemplate = "unitHomepageWithIntroBanner";
+            }
+            site.setInitialPage(Page.create(site, menu, null, TITLE_HOMEPAGE, true, homepageTemplate,
+                    Authenticate.getUser(), forType(UnitHomepageComponent.class)));
         }
     }
 
@@ -272,7 +327,6 @@ public class ImportSiteStructures extends CustomTask {
 
         if(bannerInfoJson.has("banners") && bannerInfoJson.get("banners").isJsonArray()) {
             bannerInfoJson.get("banners").getAsJsonArray().forEach(bannerJsonElement-> {
-                taskLog("importing a new banner...");
                 JsonObject bannerJson = bannerJsonElement.getAsJsonObject();
                 Post postBanner = new Post(site);
                 postBanner.setName(BANNER_NAME);

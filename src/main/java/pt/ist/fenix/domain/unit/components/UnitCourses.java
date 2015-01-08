@@ -2,14 +2,18 @@ package pt.ist.fenix.domain.unit.components;
 
 import com.google.common.collect.ImmutableMap;
 import org.fenixedu.academic.domain.CompetenceCourse;
+import org.fenixedu.academic.domain.Department;
+import org.fenixedu.academic.domain.Person;
 import org.fenixedu.academic.domain.organizationalStructure.CompetenceCourseGroupUnit;
 import org.fenixedu.academic.domain.organizationalStructure.DepartmentUnit;
 import org.fenixedu.academic.domain.organizationalStructure.ScientificAreaUnit;
 import org.fenixedu.academic.domain.organizationalStructure.Unit;
+import org.fenixedu.bennu.core.domain.User;
+import org.fenixedu.bennu.core.security.Authenticate;
 import org.fenixedu.cms.domain.Page;
 import org.fenixedu.cms.domain.component.ComponentType;
 import org.fenixedu.cms.rendering.TemplateContext;
-import pt.ist.fenix.domain.unit.components.UnitSiteComponent;
+import pt.ist.fenixedu.contracts.domain.Employee;
 
 import java.util.Collection;
 import java.util.List;
@@ -69,13 +73,10 @@ public class UnitCourses extends UnitSiteComponent {
     }
 
     public DepartmentUnit getPersonDepartmentUnit() {
-        //TODO: employees
-        /*final User user = Authenticate.getUser();
-        final Person person = user == null ? null : Person.userToPerson.apply(user);
+        final User user = Authenticate.getUser();
+        final Person person = user == null ? null : user.getPerson();
         final Employee employee = person == null ? null : person.getEmployee();
         final Department department = employee == null ? null : employee.getCurrentDepartmentWorkingPlace();
         return department == null ? null : department.getDepartmentUnit();
-        */
-        return null;
     }
 }
