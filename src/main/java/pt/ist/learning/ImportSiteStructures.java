@@ -15,7 +15,10 @@ import org.fenixedu.bennu.core.domain.User;
 import org.fenixedu.bennu.core.groups.AnyoneGroup;
 import org.fenixedu.bennu.core.groups.DynamicGroup;
 import org.fenixedu.bennu.core.security.Authenticate;
+import org.fenixedu.bennu.core.util.CoreConfiguration;
+import org.fenixedu.bennu.io.domain.GenericFile;
 import org.fenixedu.bennu.io.domain.GroupBasedFile;
+import org.fenixedu.bennu.io.servlets.FileDownloadServlet;
 import org.fenixedu.bennu.scheduler.custom.CustomTask;
 import org.fenixedu.cms.domain.*;
 import org.fenixedu.cms.domain.component.StaticPost;
@@ -56,6 +59,7 @@ public class ImportSiteStructures extends CustomTask {
     private static final Path DATA_PATH = Paths.get("/home/borgez/Desktop/unit_sites_export.json");
     private static final LocalizedString BANNER_NAME = new LocalizedString(I18N.getLocale(), "Banner");
     private static final LocalizedString TITLE_HOMEPAGE = getLocalizedString("resources.FenixEduLearningResources", "researchUnit.homepage");
+    static final String SERVLET_PATH = "/downloadFile/";
 
     public void runTask() throws Exception {
         installThemes();
@@ -69,19 +73,19 @@ public class ImportSiteStructures extends CustomTask {
             for (JsonElement el : chunk) {
                 JsonObject json = el.getAsJsonObject();
                 String type = json.get("type").getAsString();
-                if ("ScientificAreaSite".equals(type)) {
+                if ("DepartmentSite".equals(type)) {
                     Site site = FenixFramework.getDomainObject(json.get("site").getAsString());
                     if (!site.getMenusSet().isEmpty()) {
                         continue;
                     }
                     FenixFramework.atomic(() -> {
                         generateSlugs(site, type);
-                        Menu menu = createMenu(site, ExecutionCourseListener.MENU_TITLE);
+                        Menu menu = createMenu(site, ExecutionCourseListener.MENU_TITLE, "default");
 
                         createDefaultContents(site, menu, type);
                         if(site instanceof UnitSite) {
-                            Menu topMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Top"));
-                            Menu sideMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Side"));
+                            Menu topMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Top"), "top");
+                            Menu sideMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Side"), "side");
                             if (json.has("sections")) {
                                 for (JsonElement ell : json.get("sections").getAsJsonArray()) {
                                     JsonObject section = ell.getAsJsonObject();
@@ -110,9 +114,10 @@ public class ImportSiteStructures extends CustomTask {
                 .filter(content->specialSectionName.toLowerCase().equals(content.toLowerCase())).findAny().isPresent();
     }
 
-    private Menu createMenu(Site site, LocalizedString name) {
+    private Menu createMenu(Site site, LocalizedString name, String slug) {
         Menu menu = new Menu(site);
-        menu.setName(ExecutionCourseListener.MENU_TITLE);
+        menu.setName(name);
+        menu.setSlug(slug);
         return menu;
     }
 
@@ -361,7 +366,8 @@ public class ImportSiteStructures extends CustomTask {
             post.getAttachments().putFile(backgroundImage, 0);
             //Cannot find annotation method 'urlPatterns()' in type 'WebServlet':
             //metadata = metadata.with("backgroundImage", FileDownloadServlet.getDownloadUrl(backgroundImage));
-            metadata = metadata.with("backgroundImage", backgroundImage.getDisplayName());
+            String backGroundImageUrl = getDownloadUrl(backgroundImage);
+            metadata = metadata.with("backgroundImage", backGroundImageUrl);
 
         }
 
@@ -370,10 +376,16 @@ public class ImportSiteStructures extends CustomTask {
             post.getAttachments().putFile(mainImage, 0);
             //Cannot find annotation method 'urlPatterns()' in type 'WebServlet':
             //metadata = metadata.with("mainImage", FileDownloadServlet.getDownloadUrl(mainImage));
-            metadata = metadata.with("mainImage", mainImage.getDisplayName());
+            String mainImageUrl = getDownloadUrl(mainImage);
+            metadata = metadata.with("mainImage", mainImageUrl);
         }
 
         return metadata;
+    }
+
+    public static String getDownloadUrl(GenericFile file) {
+        return CoreConfiguration.getConfiguration().applicationUrl() + SERVLET_PATH + file.getExternalId() + "/"
+                + file.getFilename();
     }
 
 

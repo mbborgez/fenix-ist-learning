@@ -17,12 +17,16 @@ public class CreateFolders extends CustomTask {
 
     @Override
     public void runTask() throws Exception {
+        /*
         createFolder("disciplinas",
                 "https://gist.githubusercontent.com/jcarvalho/b6fa8afadc16fb8731e9/raw/440ef7d5f20369ea6c469b60f1f1e5582d7f0acc/gistfile1.js");
         createFolder("homepage",
                 "https://gist.githubusercontent.com/jcarvalho/13f510e3dbf7a53552b7/raw/599b92e0a25c25c0363365930e28d83e63ae1933/homepages.js");
+        */
         createFolder("unit",
                 "https://gist.githubusercontent.com/mbborgez/1ecd3dedee19d15202e1/raw/c8e4eae83a2924114b1a5e26c272570dad0f1799/UnitSiteFolder.js");
+        createFolder("departmentos",
+                "https://gist.githubusercontent.com/mbborgez/9b90d9d86fe1198b5ea8/raw/3b99bf7b7daacb452e91473fb59932b554d60284/departmentFolder.js");
     }
 
     private void createFolder(String path, String url) {

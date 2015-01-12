@@ -64,11 +64,6 @@
             "description": "Specific competence course based on path parameter",
             "file": "competenceCourse.html"
         },
-        "publications": {
-            "name": "Publications",
-            "description": "Publications",
-            "file": "publications.html"
-        },
         "unitHomepageWithIntroFloat": {
             "name": "Unit Homepage with intro float",
             "description": "Unit homepage",

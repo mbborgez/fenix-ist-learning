@@ -44,7 +44,7 @@ public class UnitEmployees extends UnitSiteComponent {
     }
 
     private Stream<Employee> activeNonTeacherEmployeesStream(Unit unit) {
-        return Employee.getAllCurrentActiveWorkingEmployees(unit).stream().sorted().filter(isTeacher.negate());
+        return Employee.getAllCurrentActiveWorkingEmployees(unit).stream().filter(isTeacher.negate());
     }
 
 }
