@@ -40,11 +40,11 @@
 
     <div class="sidebar-module">
         <h5 class="menu-header">Menu</h5>
-        {% if getValue(menus, "top") is not empty %}
-            {{ menuChildren(getValue(menus, "top").children) }}
+        {% if menus.top is not empty %}
+            {{ menuChildren(menus.top.children) }}
         {% endif %}
-        {% if getValue(menus, "side") is not empty %}
-            {{ menuChildren(getValue(menus, "side").children) }}
+        {% if menus.side is not empty %}
+            {{ menuChildren(menus.side.children) }}
         {% endif %}
     </div>
 

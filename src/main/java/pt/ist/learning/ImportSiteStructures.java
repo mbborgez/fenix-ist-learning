@@ -13,12 +13,10 @@ import com.google.gson.stream.JsonReader;
 import org.fenixedu.bennu.core.domain.Bennu;
 import org.fenixedu.bennu.core.domain.User;
 import org.fenixedu.bennu.core.groups.AnyoneGroup;
-import org.fenixedu.bennu.core.groups.DynamicGroup;
 import org.fenixedu.bennu.core.security.Authenticate;
 import org.fenixedu.bennu.core.util.CoreConfiguration;
 import org.fenixedu.bennu.io.domain.GenericFile;
 import org.fenixedu.bennu.io.domain.GroupBasedFile;
-import org.fenixedu.bennu.io.servlets.FileDownloadServlet;
 import org.fenixedu.bennu.scheduler.custom.CustomTask;
 import org.fenixedu.cms.domain.*;
 import org.fenixedu.cms.domain.component.StaticPost;
@@ -32,15 +30,10 @@ import org.fenixedu.learning.domain.executionCourse.ExecutionCourseSite;
 import org.joda.time.DateTime;
 import pt.ist.fenix.domain.homepage.HomepageListener;
 import pt.ist.fenix.domain.homepage.HomepageSite;
-import pt.ist.fenix.domain.unit.DepartmentListener;
-import pt.ist.fenix.domain.unit.ResearchUnitListener;
-import pt.ist.fenix.domain.unit.UnitSite;
+import pt.ist.fenix.domain.unit.*;
 import pt.ist.fenix.domain.unit.components.UnitHomepageComponent;
 import pt.ist.fenixframework.Atomic.TxMode;
 import pt.ist.fenixframework.FenixFramework;
-import pt.ist.fenix.domain.unit.ScientificAreaListener;
-import pt.ist.fenix.domain.unit.ScientificCouncilListener;
-import pt.ist.fenix.domain.unit.UnitsListener;
 
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
@@ -62,7 +55,7 @@ public class ImportSiteStructures extends CustomTask {
     static final String SERVLET_PATH = "/downloadFile/";
 
     public void runTask() throws Exception {
-        installThemes();
+        //installThemes();
         JsonReader jsonReader = new JsonReader(Files.newReader(DATA_PATH.toFile(), Charset.forName("UTF-8")));
         Iterable<List<JsonElement>> chunks =
                 Iterables.partition(new JsonParser().parse(jsonReader).getAsJsonArray(), 100);
@@ -73,38 +66,36 @@ public class ImportSiteStructures extends CustomTask {
             for (JsonElement el : chunk) {
                 JsonObject json = el.getAsJsonObject();
                 String type = json.get("type").getAsString();
-                if ("DepartmentSite".equals(type)) {
-                    Site site = FenixFramework.getDomainObject(json.get("site").getAsString());
-                    if (!site.getMenusSet().isEmpty()) {
-                        continue;
-                    }
-                    FenixFramework.atomic(() -> {
-                        generateSlugs(site, type);
-                        Menu menu = createMenu(site, ExecutionCourseListener.MENU_TITLE, "default");
+                Site site = FenixFramework.getDomainObject(json.get("site").getAsString());
+                if (!site.getMenusSet().isEmpty()) {
+                    continue;
+                }
+                FenixFramework.atomic(() -> {
+                    generateSlugs(site, type);
+                    Menu menu = createMenu(site, ExecutionCourseListener.MENU_TITLE, "default");
 
-                        createDefaultContents(site, menu, type);
-                        if(site instanceof UnitSite) {
-                            Menu topMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Top"), "top");
-                            Menu sideMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Side"), "side");
-                            if (json.has("sections")) {
-                                for (JsonElement ell : json.get("sections").getAsJsonArray()) {
-                                    JsonObject section = ell.getAsJsonObject();
-                                    LocalizedString sectionName = LocalizedString.fromJson(section.get("name"));
-                                    if(isSpecialSection(sectionName, "top")) {
-                                        process(site, section, topMenu, null);
-                                    } else if (isSpecialSection(sectionName, "side")) {
-                                        process(site, section, sideMenu, null);
-                                    } else {
-                                        process(site, section, menu, null);
-                                    }
+                    createDefaultContents(site, menu, type);
+                    if(site instanceof UnitSite) {
+                        Menu topMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Top"), "top");
+                        Menu sideMenu = createMenu(site, new LocalizedString().with(Locale.getDefault(), "Side"), "side");
+                        if (json.has("sections")) {
+                            for (JsonElement ell : json.get("sections").getAsJsonArray()) {
+                                JsonObject section = ell.getAsJsonObject();
+                                LocalizedString sectionName = LocalizedString.fromJson(section.get("name"));
+                                if(isSpecialSection(sectionName, "top")) {
+                                    process(site, section, topMenu, null);
+                                } else if (isSpecialSection(sectionName, "side")) {
+                                    process(site, section, sideMenu, null);
+                                } else {
+                                    process(site, section, menu, null);
                                 }
                             }
-                        } else {
-                            process(site, json, menu, null);
                         }
-                    });
-                    taskLog("Processing %s - %s - exists ? %s\n", count++, json.get("type").getAsString(), site != null);
-                }
+                    } else {
+                        process(site, json, menu, null);
+                    }
+                });
+                taskLog("Processing %s - %s - exists ? %s\n", count++, json.get("type").getAsString(), site != null);
             }
         }
     }
@@ -139,7 +130,7 @@ public class ImportSiteStructures extends CustomTask {
             } else if("ResearchUnitSite".equals(type)) {
                 ResearchUnitListener.createDefaultContents(site, menu, user);
             } else {
-                UnitsListener.createDefaultContents(site, menu, user);
+                //UnitsListener.createDefaultContents(site, menu, user);
             }
         }
     }
@@ -161,6 +152,13 @@ public class ImportSiteStructures extends CustomTask {
             }
             if(cat.getSlug() == null) {
                 cat.setSlug(StringNormalizer.slugify(cat.getName().getContent()));
+                if(site instanceof UnitSite) {
+                    if("anuncios".equals(cat.getSlug())) {
+                        cat.setSlug("announcement");
+                    } else if("eventos".equals(cat.getSlug())) {
+                        cat.setSlug("event");
+                    }
+                }
             }
         }
 
